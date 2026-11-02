@@ -175,6 +175,15 @@ TF_ACC_TERRAFORM_PATH=$(which tofu) TF_ACC_PROVIDER_HOST=registry.opentofu.org g
 With a real `terraform` binary on `PATH`, plain `go test ./...` is
 enough — neither variable is needed.
 
+CI (`.github/workflows/ci.yml`) runs `go build`/`go vet`/`gofmt` plus the
+full test suite against BOTH Terraform and OpenTofu on every push/PR —
+this provider is meant to work under either.
+
+**Not set up yet**: GoReleaser and GPG signing for publishing to the
+Terraform Registry and OpenTofu Registry. No version has been tagged or
+published — do that work (and the associated registry onboarding) when
+actually ready to publish a first release, not before.
+
 See KVault's own `CLAUDE.md` (in the `kvault` repo) for the server-side
 design this provider's `kvault_machine_enrollment` resource and
 `GET /api/machine-keys/resolve` endpoint implement.
