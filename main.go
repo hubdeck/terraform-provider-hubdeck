@@ -18,10 +18,16 @@ import (
 	"github.com/hubdeck/terraform-provider-kvault/internal/provider"
 )
 
-// version is overridden at build time via -ldflags, same convention as
-// HashiCorp's own provider scaffolding (goreleaser sets this from the git
-// tag). Left as "dev" for local builds.
-var version = "dev"
+// version and commit are overridden at build time via -ldflags, same
+// convention as HashiCorp's own provider scaffolding (goreleaser sets
+// these from the git tag/commit — see .goreleaser.yml). Left at their
+// zero values for local builds; commit isn't surfaced anywhere yet, kept
+// only so goreleaser's -X main.commit=... doesn't fail to link against a
+// nonexistent symbol.
+var (
+	version = "dev"
+	commit  = "none" //nolint:unused
+)
 
 func main() {
 	var debug bool
