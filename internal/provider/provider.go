@@ -121,6 +121,7 @@ func (p *kvaultProvider) DataSources(_ context.Context) []func() datasource.Data
 func (p *kvaultProvider) EphemeralResources(_ context.Context) []func() ephemeral.EphemeralResource {
 	return []func() ephemeral.EphemeralResource{
 		NewSecretEphemeralResource,
+		NewMachineEnrollmentCodeEphemeralResource,
 	}
 }
 
