@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-vet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+      - run: go vet ./...
+      - run: gofmt -l . | (! grep .)
+
+  # Runs the unit + acceptance test suite against both ecosystems this
+  # provider targets (see README's "Dual registry" plan) — Terraform
+  # needs no special environment variables; OpenTofu needs
+  # TF_ACC_PROVIDER_HOST set because it enforces a stricter registry-host
+  # check on the test harness's locally-reattached provider than
+  # Terraform does (see README's "Development" section for the full
+  # explanation).
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - binary: terraform
+            setup: hashicorp/setup-terraform@v3
+            extra_env: ""
+          - binary: tofu
+            setup: opentofu/setup-opentofu@v1
+            extra_env: "TF_ACC_PROVIDER_HOST=registry.opentofu.org"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: ${{ matrix.setup }}
+        with:
+          terraform_wrapper: false
+      - name: go test
+        run: |
+          export TF_ACC_TERRAFORM_PATH="$(command -v ${{ matrix.binary }})"
+          export ${{ matrix.extra_env }}
+          go test ./... -v
