@@ -122,6 +122,54 @@ handing a one-time enrollment code to a freshly-created host.
 - **`expires_in_seconds`** (computed) — how long the code is actually
   valid for, as resolved by the server.
 
+**"Never written to state" holds for THIS ephemeral resource's own
+result — it does not hold for whatever you pass it into next.** A
+`provisioner` block (as above) never touches state at all, so that path
+is safe. But if a *different* provider's resource accepts `code` as an
+ordinary (non-write-only) argument — e.g. a compute resource's plain
+`user_data` field, as used for the Contabo instances this provider was
+built against — **that provider writes it to state as plaintext**,
+because an ordinary argument's value is always persisted; only
+write-only arguments and ephemeral resources are exempt. In that case
+the mitigation is that the code is single-use and expires within
+minutes, not that it's somehow kept out of state. **Prefer a write-only
+argument for this if the target provider offers one** (check its docs —
+support is still uneven across providers); fall back to a provisioner
+(never touches state either) before falling back to a plain `user_data`
+argument.
+
+**Every `Open` mints a fresh code — including on `terraform plan`, not
+only `terraform apply`.** Ephemeral resources are opened by Terraform
+Core during planning as well as during apply (confirmed empirically
+while writing this provider's own acceptance tests — see
+`machine_enrollment_test.go`'s stub server, which had to be written so
+that minting a code does NOT register a MachineKey, matching the real
+server: identity is only ever created by actual *redemption*
+(`POST /enroll`), never by minting). Two real effects worth knowing
+about, not bugs needing a guard:
+- **A `terraform plan` that merely references this ephemeral resource
+  mints a real code and writes a real `mint_enroll_code` audit entry on
+  the KVault server — even though nothing was applied.** The code is
+  simply never surfaced anywhere and expires unused. If this shows up as
+  audit-log noise ("why did a mint happen with no apply?"), that's
+  expected, not a sign of a problem.
+- **Minting a second code does NOT invalidate an earlier one that's
+  still valid and in flight** (confirmed against the server's actual
+  redemption logic, `admin.ts`'s `handleEnrollRequest`): a code's
+  validity is tracked only by its own `used`/expiry state, never by its
+  relationship to other codes minted for the same name. So a plan-time
+  mint never invalidates the apply-time code that actually gets pasted
+  into a host that's still booting. The one real edge case: for a
+  **fresh (create-mode) enrollment**, redemption never checks whether a
+  `MachineKey` under that name already exists — it always creates a new
+  one. If BOTH a plan-time and an apply-time create-mode code somehow
+  got redeemed (not the normal case; the plan-time one is never exposed
+  to anything), you'd end up with two separate machine identities under
+  the same name, which a later rekey mint for that name would then
+  correctly refuse as ambiguous (`409`) until resolved by an explicit
+  `key_id`. In the ordinary case — only the code that actually reaches
+  the host ever gets redeemed — this never comes up.
+
 ## Ephemeral resource: `kvault_secret`
 
 Reads a secret via KVault's ordinary Service-Token-authenticated
@@ -177,12 +225,52 @@ enough — neither variable is needed.
 
 CI (`.github/workflows/ci.yml`) runs `go build`/`go vet`/`gofmt` plus the
 full test suite against BOTH Terraform and OpenTofu on every push/PR —
-this provider is meant to work under either.
+this provider is meant to work under either. Every action in both
+workflows is pinned by commit SHA (with the version as a trailing
+comment), not by tag — same convention as `reacks-deploy`.
 
-**Not set up yet**: GoReleaser and GPG signing for publishing to the
-Terraform Registry and OpenTofu Registry. No version has been tagged or
-published — do that work (and the associated registry onboarding) when
-actually ready to publish a first release, not before.
+## Releasing
+
+`.goreleaser.yml` builds linux/darwin/windows/freebsd on amd64+arm64
+(darwin/386 and freebsd/arm64 excluded — not realistic targets), zips
+each, and produces a `_SHA256SUMS` file plus a detached GPG signature
+over it, alongside `terraform-registry-manifest.json`
+(`protocol_versions: ["6.0"]`) — the shape both the Terraform Registry
+and the OpenTofu Registry expect. `.github/workflows/release.yml` runs
+this via `goreleaser/goreleaser-action` whenever a `v*` tag is pushed.
+
+**Dry run** (no tag, no signing key needed to try the rest of the
+pipeline):
+
+```sh
+go install github.com/goreleaser/goreleaser/v2@latest
+goreleaser release --snapshot --clean
+```
+
+This was run once during initial setup against a throwaway local GPG key
+to confirm the full pipeline (7 platform builds, zip archives, checksum
+file, valid detached signature) works end to end — it did. `dist/` is
+gitignored.
+
+**One-time setup still needed before the first real tag** (not done as
+part of this change — these are account-level decisions, not something
+to automate):
+
+1. Generate a real signing key: `gpg --full-generate-key` (RSA 4096 or
+   larger). This key is a long-term credential — treat it with the same
+   care as KVault's own master-key escrow (CLAUDE.md's "Master key
+   escrow" section): back up the private key and passphrase somewhere
+   durable and offline, not only in GitHub.
+2. Register the **public** key with the Terraform Registry (publishing
+   settings on your registry.terraform.io account). The OpenTofu
+   Registry does not require separate key registration — it picks up
+   signed releases directly from this repo's GitHub releases.
+3. Create a GitHub Environment named `release` on this repo (Settings ->
+   Environments), add `GPG_PRIVATE_KEY` (`gpg --armor --export-secret-keys
+   <key-id>`) and `PASSPHRASE` as **environment** secrets (not repository
+   secrets), and set required reviewers on that environment so pushing a
+   tag alone can't trigger a real publish without an explicit approval.
+4. Push a `vX.Y.Z` tag. `release.yml` picks it up from there.
 
 See KVault's own `CLAUDE.md` (in the `kvault` repo) for the server-side
 design this provider's `kvault_machine_enrollment` resource and
