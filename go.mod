@@ -1,4 +1,4 @@
-module github.com/hubdeck/terraform-provider-kvault
+module github.com/hubdeck/terraform-provider-hubdeck
 
 go 1.27.3
 

@@ -132,14 +132,14 @@ func (s *stubKVault) isRevoked(name string) bool {
 
 func protoV6ProviderFactories() map[string]func() (tfprotov6.ProviderServer, error) {
 	return map[string]func() (tfprotov6.ProviderServer, error){
-		"kvault": providerserver.NewProtocol6WithError(New("test")()),
-		"echo":   echoprovider.NewProviderServer(),
+		"hubdeck": providerserver.NewProtocol6WithError(New("test")()),
+		"echo":    echoprovider.NewProviderServer(),
 	}
 }
 
 // TestMachineEnrollmentResource_Lifecycle drives a real create -> refresh
 // (key_id resolves once the stub "host" redeems its code) -> destroy
-// (revokes the key_id) cycle through kvault_machine_enrollment. This is
+// (revokes the key_id) cycle through hubdeck_kvault_machine_enrollment. This is
 // the acceptance-level verification the code review asked for after the
 // write-only-attribute redesign: confirms key_id genuinely resolves via
 // GET /api/machine-keys/resolve and genuinely gets revoked via DELETE
@@ -151,13 +151,13 @@ func TestMachineEnrollmentResource_Lifecycle(t *testing.T) {
 	defer srv.Close()
 
 	config := fmt.Sprintf(`
-provider "kvault" {
+provider "hubdeck" {
   endpoint         = %q
   ci_client_id     = "test-ci-id"
   ci_client_secret = "test-ci-secret"
 }
 
-resource "kvault_machine_enrollment" "host" {
+resource "hubdeck_kvault_machine_enrollment" "host" {
   name = "host-1"
 }
 `, srv.URL)
@@ -174,8 +174,8 @@ resource "kvault_machine_enrollment" "host" {
 				// yet — key_id must be empty, not an error.
 				Config: config,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("kvault_machine_enrollment.host", "name", "host-1"),
-					resource.TestCheckResourceAttr("kvault_machine_enrollment.host", "key_id", ""),
+					resource.TestCheckResourceAttr("hubdeck_kvault_machine_enrollment.host", "name", "host-1"),
+					resource.TestCheckResourceAttr("hubdeck_kvault_machine_enrollment.host", "key_id", ""),
 				),
 			},
 			{
@@ -189,7 +189,7 @@ resource "kvault_machine_enrollment" "host" {
 				PreConfig: func() { stub.machines["host-1"] = "key-host-1" },
 				Config:    config,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("kvault_machine_enrollment.host", "key_id", "key-host-1"),
+					resource.TestCheckResourceAttr("hubdeck_kvault_machine_enrollment.host", "key_id", "key-host-1"),
 				),
 			},
 		},
@@ -207,7 +207,7 @@ resource "kvault_machine_enrollment" "host" {
 // actual fix for the review's "Must fix" finding: the minted code reaches
 // a consumer (here, the echo provider's own state attribute, the
 // standard way to assert on an ephemeral value in these tests) and is
-// never written to kvault_machine_enrollment's own state at all — there
+// never written to hubdeck_kvault_machine_enrollment's own state at all — there
 // is no "code" attribute on that resource anymore for it to leak into.
 func TestMachineEnrollmentCodeEphemeralResource_NeverPersisted(t *testing.T) {
 	stub := newStubKVault()
@@ -215,18 +215,18 @@ func TestMachineEnrollmentCodeEphemeralResource_NeverPersisted(t *testing.T) {
 	defer srv.Close()
 
 	config := fmt.Sprintf(`
-provider "kvault" {
+provider "hubdeck" {
   endpoint         = %q
   ci_client_id     = "test-ci-id"
   ci_client_secret = "test-ci-secret"
 }
 
-ephemeral "kvault_machine_enrollment_code" "host" {
+ephemeral "hubdeck_kvault_machine_enrollment_code" "host" {
   name = "host-2"
 }
 
 provider "echo" {
-  data = ephemeral.kvault_machine_enrollment_code.host
+  data = ephemeral.hubdeck_kvault_machine_enrollment_code.host
 }
 
 resource "echo" "test" {}
@@ -248,7 +248,7 @@ resource "echo" "test" {}
 }
 
 // TestSecretEphemeralResource_NeverPersisted is the same verification
-// for the pre-existing kvault_secret ephemeral resource — not new from
+// for the pre-existing hubdeck_kvault_secret ephemeral resource — not new from
 // the review, but was never actually exercised through a real
 // plan/apply cycle before (only the Go-level smoke test done during
 // initial implementation), so added here for the same reason.
@@ -258,18 +258,18 @@ func TestSecretEphemeralResource_NeverPersisted(t *testing.T) {
 	defer srv.Close()
 
 	config := fmt.Sprintf(`
-provider "kvault" {
+provider "hubdeck" {
   endpoint         = %q
   ci_client_id     = "test-ci-id"
   ci_client_secret = "test-ci-secret"
 }
 
-ephemeral "kvault_secret" "demo" {
+ephemeral "hubdeck_kvault_secret" "demo" {
   name = "demo-secret"
 }
 
 provider "echo" {
-  data = ephemeral.kvault_secret.demo
+  data = ephemeral.hubdeck_kvault_secret.demo
 }
 
 resource "echo" "test" {}

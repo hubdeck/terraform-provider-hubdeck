@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/hubdeck/terraform-provider-kvault/internal/kvaultclient"
+	"github.com/hubdeck/terraform-provider-hubdeck/internal/kvaultclient"
 )
 
 var (
@@ -38,7 +38,7 @@ type machineEnrollmentCodeEphemeralResource struct {
 // bump here, because unlike a managed resource's Update, an ephemeral
 // resource has no state to diff against in the first place: referencing
 // it at all means "I want a code right now," full stop. Pass key_id
-// (from the matching kvault_machine_enrollment resource's own key_id,
+// (from the matching hubdeck_kvault_machine_enrollment resource's own key_id,
 // once known) to mint a REKEY-mode code against that exact identity;
 // leave it unset for a fresh (create-mode) enrollment, or to let the
 // server self-resolve by name (same 0/1/ambiguous logic as the
@@ -54,12 +54,12 @@ type machineEnrollmentCodeEphemeralModel struct {
 }
 
 func (e *machineEnrollmentCodeEphemeralResource) Metadata(_ context.Context, req ephemeral.MetadataRequest, resp *ephemeral.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_machine_enrollment_code"
+	resp.TypeName = req.ProviderTypeName + "_kvault_machine_enrollment_code"
 }
 
 func (e *machineEnrollmentCodeEphemeralResource) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Mints a single-use KVault machine enrollment code on every open — never written to plan or state. Pair with kvault_machine_enrollment for identity tracking and revoke-on-destroy; reference THIS resource wherever a host or operator script actually needs a code (initial enrollment, or a later rekey), e.g. from a provisioner block.",
+		Description: "Mints a single-use KVault machine enrollment code on every open — never written to plan or state. Pair with hubdeck_kvault_machine_enrollment for identity tracking and revoke-on-destroy; reference THIS resource wherever a host or operator script actually needs a code (initial enrollment, or a later rekey), e.g. from a provisioner block.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -67,7 +67,7 @@ func (e *machineEnrollmentCodeEphemeralResource) Schema(_ context.Context, _ eph
 			},
 			"key_id": schema.StringAttribute{
 				Optional:    true,
-				Description: "Mint a rekey-mode code against this exact identity (from kvault_machine_enrollment.<name>.key_id). Leave unset for a fresh enrollment, or to let the server resolve by name itself.",
+				Description: "Mint a rekey-mode code against this exact identity (from hubdeck_kvault_machine_enrollment.<name>.key_id). Leave unset for a fresh enrollment, or to let the server resolve by name itself.",
 			},
 			"ttl": schema.StringAttribute{
 				Optional:    true,

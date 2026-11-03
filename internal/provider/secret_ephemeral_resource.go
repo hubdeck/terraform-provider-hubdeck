@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/ephemeral/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/hubdeck/terraform-provider-kvault/internal/kvaultclient"
+	"github.com/hubdeck/terraform-provider-hubdeck/internal/kvaultclient"
 )
 
 var (
@@ -31,7 +31,7 @@ type secretEphemeralModel struct {
 }
 
 func (e *secretEphemeralResource) Metadata(_ context.Context, req ephemeral.MetadataRequest, resp *ephemeral.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_secret"
+	resp.TypeName = req.ProviderTypeName + "_kvault_secret"
 }
 
 func (e *secretEphemeralResource) Schema(_ context.Context, _ ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {

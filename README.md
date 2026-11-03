@@ -1,12 +1,13 @@
-# terraform-provider-kvault
+# terraform-provider-hubdeck
 
-A Terraform/OpenTofu provider for [KVault](https://github.com/hsuk-io/kvault),
-scoped deliberately narrow: it authenticates as a single `canMintEnrollments`
-Service Token and can only mint/revoke machine enrollment codes and read
-secrets. It has no concept of an "admin" credential — KVault's `/admin/*`
-surface (projects, Service Tokens, IP restrictions) is entirely gated by
-Cloudflare Access human SSO and stays that way; this provider is not, and
-will never be, a way around that.
+A Terraform/OpenTofu provider for Hubdeck apps. Today it implements only
+[KVault](https://github.com/hsuk-io/kvault)'s resources (the `hubdeck_kvault_*`
+types below), scoped deliberately narrow: it authenticates as a single
+`canMintEnrollments` Service Token and can only mint/revoke machine
+enrollment codes and read secrets. It has no concept of an "admin"
+credential — KVault's `/admin/*` surface (projects, Service Tokens, IP
+restrictions) is entirely gated by Cloudflare Access human SSO and stays
+that way; this provider is not, and will never be, a way around that.
 
 Requires **Terraform 1.10+ or OpenTofu 1.10+** (ephemeral resource
 support).
@@ -16,13 +17,13 @@ support).
 ```hcl
 terraform {
   required_providers {
-    kvault = {
-      source = "hubdeck/kvault"
+    hubdeck = {
+      source = "hubdeck/hubdeck"
     }
   }
 }
 
-provider "kvault" {
+provider "hubdeck" {
   endpoint         = "https://vault.example.com"
   ci_client_id     = var.kvault_ci_client_id     # or set KVAULT_CI_CLIENT_ID
   ci_client_secret = var.kvault_ci_client_secret # or set KVAULT_CI_CLIENT_SECRET
@@ -34,7 +35,7 @@ credentials. An admin must create the token in KVault and set
 `canMintEnrollments` on it first — see KVault's `CLAUDE.md`, "CI
 self-enrollment" / "Fleet rebuilds (rekey)" sections.
 
-## Resource: `kvault_machine_enrollment`
+## Resource: `hubdeck_kvault_machine_enrollment`
 
 Tracks a KVault machine identity's lifecycle: resolves its `key_id` once
 a host actually enrolls under this name, and revokes that `key_id` on
@@ -49,7 +50,7 @@ resource from the practitioner's own config, not values a provider
 generates and hands back.)
 
 ```hcl
-resource "kvault_machine_enrollment" "host" {
+resource "hubdeck_kvault_machine_enrollment" "host" {
   name = "prod-worker-03"
 }
 ```
@@ -67,33 +68,33 @@ Destroying this resource revokes `key_id` via
 `DELETE /api/machine-keys/:id` — if no host ever actually enrolled under
 this name, there's nothing to revoke and this is a no-op.
 
-## Ephemeral resource: `kvault_machine_enrollment_code`
+## Ephemeral resource: `hubdeck_kvault_machine_enrollment_code`
 
 Mints a single-use KVault machine enrollment code — the Terraform-native
 replacement for baking a `canMintEnrollments` Service Token directly
 into a host. **Every `Open` mints a fresh code** — unlike the resource
 above, an ephemeral resource has no state to diff against, so there is
 no "generation" counter to bump: referencing it at all means "mint one
-right now." Pair it with `kvault_machine_enrollment.<name>.key_id` to
+right now." Pair it with `hubdeck_kvault_machine_enrollment.<name>.key_id` to
 mint a **rekey**-mode code against that exact, already-tracked identity
 (e.g. after rebuilding a host); leave `key_id` unset for a fresh
 enrollment.
 
 ```hcl
-resource "kvault_machine_enrollment" "host" {
+resource "hubdeck_kvault_machine_enrollment" "host" {
   name = "prod-worker-03"
 }
 
-ephemeral "kvault_machine_enrollment_code" "host" {
-  name   = kvault_machine_enrollment.host.name
-  key_id = kvault_machine_enrollment.host.key_id # omit/empty for a fresh enrollment
+ephemeral "hubdeck_kvault_machine_enrollment_code" "host" {
+  name   = hubdeck_kvault_machine_enrollment.host.name
+  key_id = hubdeck_kvault_machine_enrollment.host.key_id # omit/empty for a fresh enrollment
 }
 
 resource "some_compute_instance" "host" {
   # ...
   provisioner "remote-exec" {
     inline = [
-      "kvault-cli enroll --url https://vault.example.com --code ${ephemeral.kvault_machine_enrollment_code.host.code} --name prod-worker-03",
+      "kvault-cli enroll --url https://vault.example.com --code ${ephemeral.hubdeck_kvault_machine_enrollment_code.host.code} --name prod-worker-03",
     ]
   }
 }
@@ -170,14 +171,14 @@ about, not bugs needing a guard:
   `key_id`. In the ordinary case — only the code that actually reaches
   the host ever gets redeemed — this never comes up.
 
-## Ephemeral resource: `kvault_secret`
+## Ephemeral resource: `hubdeck_kvault_secret`
 
 Reads a secret via KVault's ordinary Service-Token-authenticated
 `GET /api/secret/:key` route — the value exists only for the duration of
 the apply that opens it and is never written to plan or state.
 
 ```hcl
-ephemeral "kvault_secret" "docker_hub" {
+ephemeral "hubdeck_kvault_secret" "docker_hub" {
   name = "docker-hub-token"
 }
 
@@ -273,5 +274,5 @@ to automate):
 4. Push a `vX.Y.Z` tag. `release.yml` picks it up from there.
 
 See KVault's own `CLAUDE.md` (in the `kvault` repo) for the server-side
-design this provider's `kvault_machine_enrollment` resource and
+design this provider's `hubdeck_kvault_machine_enrollment` resource and
 `GET /api/machine-keys/resolve` endpoint implement.

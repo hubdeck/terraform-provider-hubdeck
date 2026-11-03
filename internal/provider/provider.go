@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/hubdeck/terraform-provider-kvault/internal/kvaultclient"
+	"github.com/hubdeck/terraform-provider-hubdeck/internal/kvaultclient"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -53,7 +53,7 @@ type providerData struct {
 }
 
 func (p *kvaultProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "kvault"
+	resp.TypeName = "hubdeck"
 	resp.Version = p.version
 }
 

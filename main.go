@@ -1,11 +1,11 @@
-// terraform-provider-kvault is a Terraform/OpenTofu provider for KVault
-// (https://github.com/hsuk-io/kvault), scoped deliberately narrow: it
-// only ever authenticates as a canMintEnrollments Service Token, and so
-// can only mint/revoke machine enrollment codes and read secrets — never
-// manage projects, Service Tokens, or IP restrictions, all of which stay
-// behind KVault's human-SSO-only /admin/* surface. See
-// internal/provider/provider.go and KVault's own CLAUDE.md for the full
-// design.
+// terraform-provider-hubdeck is a Terraform/OpenTofu provider for Hubdeck
+// apps. Today it only implements KVault's (https://github.com/hsuk-io/kvault)
+// resources, scoped deliberately narrow: it only ever authenticates as a
+// canMintEnrollments Service Token, and so can only mint/revoke machine
+// enrollment codes and read secrets — never manage projects, Service
+// Tokens, or IP restrictions, all of which stay behind KVault's
+// human-SSO-only /admin/* surface. See internal/provider/provider.go and
+// KVault's own CLAUDE.md for the full design.
 package main
 
 import (
@@ -15,7 +15,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 
-	"github.com/hubdeck/terraform-provider-kvault/internal/provider"
+	"github.com/hubdeck/terraform-provider-hubdeck/internal/provider"
 )
 
 // version and commit are overridden at build time via -ldflags, same
@@ -35,7 +35,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/hubdeck/kvault",
+		Address: "registry.terraform.io/hubdeck/hubdeck",
 		Debug:   debug,
 	}
 

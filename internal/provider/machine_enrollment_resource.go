@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
-	"github.com/hubdeck/terraform-provider-kvault/internal/kvaultclient"
+	"github.com/hubdeck/terraform-provider-hubdeck/internal/kvaultclient"
 )
 
 var (
@@ -43,7 +43,7 @@ type machineEnrollmentResource struct {
 // never persists — e.g. a password-rotation resource's "new password"
 // input. A provider cannot use the same mechanism to hand a
 // provider-generated secret back out.) Minting now lives entirely in the
-// kvault_machine_enrollment_code EPHEMERAL resource (see that file),
+// hubdeck_kvault_machine_enrollment_code EPHEMERAL resource (see that file),
 // whose Open() result is never subject to this nullification at all —
 // ephemeral resources have no persisted state in the first place. See
 // KVault's CLAUDE.md, "Fleet rebuilds (rekey)" section, for the
@@ -54,12 +54,12 @@ type machineEnrollmentModel struct {
 }
 
 func (r *machineEnrollmentResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_machine_enrollment"
+	resp.TypeName = req.ProviderTypeName + "_kvault_machine_enrollment"
 }
 
 func (r *machineEnrollmentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Tracks a KVault machine identity's lifecycle — resolving its key_id once a host enrolls under this name, and revoking that key_id on destroy. Mints no codes itself: use the kvault_machine_enrollment_code ephemeral resource (referencing this resource's key_id) whenever a host actually needs one, including a later rekey.",
+		Description: "Tracks a KVault machine identity's lifecycle — resolving its key_id once a host enrolls under this name, and revoking that key_id on destroy. Mints no codes itself: use the hubdeck_kvault_machine_enrollment_code ephemeral resource (referencing this resource's key_id) whenever a host actually needs one, including a later rekey.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Required:    true,
